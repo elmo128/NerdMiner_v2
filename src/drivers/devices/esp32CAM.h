@@ -6,7 +6,13 @@
 
 #define NO_DISPLAY
 
-// SDMMC interface: 1-bit mode (might cause issues):
+// example how to configure SD card.
+// if you would define everything, 
+// to select 1 bit mode, make sure SDMMC_D1-3 are undefined
+// to use spi mode, make sure all SDMMC_x pins are undefined
+
+/*
+// use SDMMC interface: 1-bit mode (might cause issues):
 #define SDMMC_CLK 14
 #define SDMMC_CMD 15
 #define SDMMC_D0 2
@@ -14,5 +20,14 @@
 #define SDMMC_D1 4
 #define SDMMC_D2 12
 #define SDMMC_D3 13
+*/
+
+//use SPI interface 
+//SPI pins. default SPI unit provided by <SPI.h> is used
+#define SDSPI_CLK   14
+#define SDSPI_CS    13
+#define SDSPI_MOSI  15
+#define SDSPI_MISO  2
+
 
 #endif // _ESP32_CAM_H_
