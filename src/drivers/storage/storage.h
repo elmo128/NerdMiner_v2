@@ -1,8 +1,6 @@
 #ifndef _STORAGE_H_
 #define _STORAGE_H_
 
-#include <inttypes.h>
-
 #define DEFAULT_SSID		"NerdMinerAP"
 #define DEFAULT_WIFIPW		"MineYourCoins"
 #define DEFAULT_POOLURL		"public-pool.io"
@@ -23,12 +21,12 @@
 
 struct TSettings
 {
-	char WifiSSID[80]{ DEFAULT_SSID };
-	char WifiPW[80]{ DEFAULT_WIFIPW };
+	char WifiSSID[33]{ DEFAULT_SSID };
+	char WifiPW[65]{ DEFAULT_WIFIPW };
 	char PoolAddress[80]{ DEFAULT_POOLURL };
 	char BtcWallet[80]{ DEFAULT_WALLETID };
-	uint32_t PoolPort{ DEFAULT_POOLPORT };
-	int32_t Timezone{ DEFAULT_TIMEZONE };
+	int PoolPort{ DEFAULT_POOLPORT };
+	int Timezone{ DEFAULT_TIMEZONE };
 	bool saveStats{ DEFAULT_SAVESTATS };
 };
 
