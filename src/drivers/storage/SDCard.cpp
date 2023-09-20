@@ -60,9 +60,9 @@ bool SDCard::loadConfigFile(TSettings* Settings)
                 unmount();
                 if (!error)
                 {
-                    strcpy(Settings->WifiSSID, json[JSON_KEY_SSID] | Settings->WifiSSID);
-                    strcpy(Settings->WifiPW, json[JSON_KEY_PASW] | Settings->WifiPW);
-                    strcpy(Settings->PoolAddress, json[JSON_KEY_POOLURL] | Settings->PoolAddress);
+                    Settings->WifiSSID = json[JSON_KEY_SSID] | Settings->WifiSSID;
+                    Settings->WifiPW = json[JSON_KEY_PASW] | Settings->WifiPW;
+                    Settings->PoolAddress = json[JSON_KEY_POOLURL] | Settings->PoolAddress;
                     strcpy(Settings->BtcWallet, json[JSON_KEY_WALLETID] | Settings->BtcWallet);
                     if (json.containsKey(JSON_KEY_POOLPORT))
                         Settings->PoolPort = json[JSON_KEY_POOLPORT].as<int>();
