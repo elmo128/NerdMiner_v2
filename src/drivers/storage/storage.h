@@ -3,6 +3,9 @@
 
 #include <Arduino.h>
 
+// config file
+
+// default settings
 #define DEFAULT_SSID		"NerdMinerAP"
 #define DEFAULT_WIFIPW		"MineYourCoins"
 #define DEFAULT_POOLURL		"public-pool.io"
