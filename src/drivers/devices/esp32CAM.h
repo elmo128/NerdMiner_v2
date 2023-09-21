@@ -4,8 +4,7 @@
 #define PIN_BUTTON_1 0
 #define LED_PIN 33
 
-#define DONGLE_DISPLAY // NO_DISPLAY
-
+#define DONGLE_DISPLAY
 // example how to configure SD card.
 // if you would define everything, 
 // to select 1 bit mode, make sure SDMMC_D1-3 are undefined
