@@ -24,7 +24,7 @@
 #undef BUILD_SDMMC_1
 #undef BUILD_SDMMC_4
 #define BUILD_SDSPI
-#ifdef defined (SDSPI_CLK) && defined (SDSPI_MOSI) && defined (SDSPI_MISO) && defined (NO_DISPLAY)
+#if defined (SDSPI_CLK) && defined (SDSPI_MOSI) && defined (SDSPI_MISO) && defined (NO_DISPLAY)
 #define BUILD_SDSPI_SETUP
 #endif // SPIPINS
 #include <SPI.h>
