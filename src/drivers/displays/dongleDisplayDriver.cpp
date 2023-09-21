@@ -74,8 +74,10 @@ extern monitor_data mMonitor;
 
 void dongleDisplay_Init(void)
 {
+  #ifdef USE_LED
   FastLED.addLeds<APA102, LED_DI_PIN, LED_CI_PIN, BGR>(&leds, 1);
   FastLED.show();
+  #endif // USE_LED
 
   tft.init();
   tft.setRotation(3);
