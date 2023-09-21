@@ -1,6 +1,8 @@
+#define ESP_DRD_USE_SPIFFS true
 
 // Include Libraries
 //#include ".h"
+
 #include <WiFi.h>
 
 #include <WiFiManager.h>
