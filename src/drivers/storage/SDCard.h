@@ -5,6 +5,9 @@
 #include "nvMemory.h"
 #include "..\devices\device.h"
 
+// configuration example and description in /devices/esp32cam.h
+
+// select interface and options according to provided pins
 #if defined (SDMMC_D0) && defined (SDMMC_D1) && defined (SDMMC_D2) && defined (SDMMC_D3)
 #define BUILD_SDMMC_4
 #undef BUILD_SDMMC_1
@@ -17,10 +20,13 @@
 #undef BUILD_SDSPI
 #include <SD_MMC.h>
 #warning SD card support in 1-Bit mode enabled!
-#elif defined (SDSPI_CLK) && defined (SDSPI_CS) && defined (SDSPI_MOSI) && defined (SDSPI_MISO)
-#define BUILD_SDSPI
+#elif defined (SDSPI_CS)
 #undef BUILD_SDMMC_1
 #undef BUILD_SDMMC_4
+#define BUILD_SDSPI
+#ifdef defined (SDSPI_CLK) && defined (SDSPI_MOSI) && defined (SDSPI_MISO) && defined (NO_DISPLAY)
+#define BUILD_SDSPI_SETUP
+#endif // SPIPINS
 #include <SPI.h>
 #include <SD.h>
 #warning SD card support in SPI mode enabled!
