@@ -45,4 +45,31 @@ struct TSettings
 	bool saveStats{ DEFAULT_SAVESTATS };
 };
 
+// Logfile, Settings, inherited from TSettings are just for information and might be incomplete.
+#define JSON_LOG_FILE "/log.json"
+#define JSON_LOGS_OBJECT_SETTINGS "Settings"
+#define JSON_LOGS_OBJECT_LOGS   "Logs"
+#define JSON_LOGS_KEY_TEMPLATES "Templates"
+#define JSON_LOGS_KEY_MHASHES   "MHashes"
+#define JSON_LOGS_KEY_UPTIME    "UpTime"
+#define JSON_LOGS_KEY_SHARES    "Shares"
+#define JSON_LOGS_KEY_VALIDS    "Valids"
+#define JSON_LOGS_KEY_BESTDIFF  "bestDiff"
+
+struct TLog : TSettings
+{
+    uint32_t templates{0};
+    //uint32_t hashes{0};
+    uint32_t Mhashes{0};
+    //uint32_t totalKHashes{0};
+    //uint32_t elapsedKHs{0};
+    uint64_t upTime{0};
+
+    uint32_t shares{0}; // increase if blockhash has 32 bits of zeroes
+    uint32_t valids{0}; // increased if blockhash <= target
+
+    // Track best diff
+    double best_diff{0.0};
+};
+
 #endif // _STORAGE_H_
