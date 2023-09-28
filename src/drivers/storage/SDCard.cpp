@@ -328,8 +328,8 @@ bool SDCard::loadConfigFile(TSettings* Settings) { return false; }
 bool SDCard::initSDcard() { return false; }
 bool SDCard::cardAvailable() { return false; }
 bool SDCard::cardBusy() { return false; }
-bool SDCard::loadLogFile(TLog* Logdata) { return false; }
+bool SDCard::loadLogFile(TLog& Logdata) { return false; }
 bool SDCard::saveLogfile(TLog& Logdata) { return false; }
-bool SDCard::updateLogfile(TSettings* Settings, TLog& Logdata) { return false; }
+bool SDCard::updateLogfile(TLog& Logdata) { return false; }
 
 #endif //BUILD_SDMMC

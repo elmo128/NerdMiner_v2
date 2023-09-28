@@ -60,7 +60,7 @@ private:
     bool initSDcard();
     bool loadLogFile(TLog& Logdata);
     bool saveLogfile(TLog& Logdata);
-
+    
     bool cardInitialized_;
     bool cardBusy_;
     TLog logData_;

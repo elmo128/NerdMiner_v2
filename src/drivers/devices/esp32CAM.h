@@ -22,7 +22,7 @@
 #define SDMMC_D2 12
 #define SDMMC_D3 13
 */
-
+/*
 // use SPI interface
 // (default SPI unit provided by <SPI.h>)
 // setup SPI pins.
@@ -32,5 +32,5 @@
 #define SDSPI_CLK   14
 #define SDSPI_MOSI  15
 #define SDSPI_MISO  2
-
+*/
 #endif // _ESP32_CAM_H_
