@@ -1,5 +1,8 @@
 .pio
 .vscode
+.vs
+*.vcxproj*
+*.sln
 NerdMinerLog.txt
 bin/0x10000_firmware.bin
 logs
