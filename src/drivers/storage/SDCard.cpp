@@ -1,6 +1,7 @@
 #include <FS.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
+#include <cmath>
 
 #include "storage.h"
 #include "nvMemory.h"
@@ -82,7 +83,7 @@ bool SDCard::loadConfigFile(TSettings* Settings)
         if (iSD_->exists(JSON_CONFIG_FILE))
         {
             // The file exists, reading and loading
-            File configFile = iSD_->open(JSON_CONFIG_FILE, "r");
+            File configFile = iSD_->open(JSON_CONFIG_FILE, FILE_READ);
             if (configFile)
             {
                 cardBusy_ = true;
@@ -180,40 +181,56 @@ bool SDCard::initSDcard()
     return cardInitialized_;
 }
 
-bool SDCard::save2Logfile(TLog* Logdata)
+/// @brief Update logfile on SD card
+/// @param &Logdata 
+/// @return true on updated
+bool SDCard::updateLogfile(TLog& Logdata)
+{
+    if(!logData_.initialized_)
+    {
+        loadLogFile(logData_);
+    }
+    if (logData_.compare(Logdata))
+    {
+        logData_ = Logdata;
+        return saveLogfile(Logdata);
+    }
+    return false;
+}
+
+bool SDCard::saveLogfile(TLog& Logdata)
 {
     if (cardAvailable())
     {
         // Save Config in JSON format
         Serial.println(F("SDCard: Saving Logs."));
 
-        // Open config file
+        // Create a JSON document
+        StaticJsonDocument<512> json;
 
-        File configFile = iSD_->open(JSON_LOG_FILE, "w", true);
+        auto Jsettings = json.createNestedObject(JSON_LOGS_OBJECT_SETTINGS);
+        Jsettings[JSON_KEY_POOLURL] = Logdata.Settings->PoolAddress;
+        Jsettings[JSON_KEY_POOLPORT] = Logdata.Settings->PoolPort;
+        Jsettings[JSON_KEY_WALLETID] = Logdata.Settings->BtcWallet;
+        Jsettings[JSON_KEY_TIMEZONE] = Logdata.Settings->Timezone;
+        Jsettings[JSON_KEY_STATS2NV] = Logdata.Settings->saveStats;
+
+        auto Jlogs = json.createNestedObject(JSON_LOGS_OBJECT_LOGS);
+        Jlogs[JSON_LOGS_KEY_BESTDIFF] = Logdata.best_diff;
+        Jlogs[JSON_LOGS_KEY_MHASHES] = Logdata.Mhashes;
+        Jlogs[JSON_LOGS_KEY_SHARES] = Logdata.shares;
+        Jlogs[JSON_LOGS_KEY_TEMPLATES] = Logdata.templates;
+        Jlogs[JSON_LOGS_KEY_UPTIME] = Logdata.upTime;
+        Jlogs[JSON_LOGS_KEY_VALIDS] = Logdata.valids;
+
+        // Serialize JSON data to write to file
+        serializeJsonPretty(json, Serial);
+        Serial.print('\n');
+
+        File configFile = iSD_->open(JSON_LOG_FILE, FILE_WRITE, true);
         if (configFile)
         {
             cardBusy_ = true;
-            // Create a JSON document
-            StaticJsonDocument<512> json;
-
-            auto Jsettings = json.createNestedObject(JSON_LOGS_OBJECT_SETTINGS);
-            Jsettings[JSON_KEY_POOLURL] = Logdata->PoolAddress;
-            Jsettings[JSON_KEY_POOLPORT] = Logdata->PoolPort;
-            Jsettings[JSON_KEY_WALLETID] = Logdata->BtcWallet;
-            Jsettings[JSON_KEY_TIMEZONE] = Logdata->Timezone;
-            Jsettings[JSON_KEY_STATS2NV] = Logdata->saveStats;
-
-            auto Jlogs = json.createNestedObject(JSON_LOGS_OBJECT_LOGS);
-            Jlogs[JSON_LOGS_KEY_BESTDIFF] = Logdata->best_diff;
-            Jlogs[JSON_LOGS_KEY_MHASHES] = Logdata->Mhashes;
-            Jlogs[JSON_LOGS_KEY_SHARES] = Logdata->shares;
-            Jlogs[JSON_LOGS_KEY_TEMPLATES] = Logdata->templates;
-            Jlogs[JSON_LOGS_KEY_UPTIME] = Logdata->upTime;
-            Jlogs[JSON_LOGS_KEY_VALIDS] = Logdata->valids;
-
-            // Serialize JSON data to write to file
-            serializeJsonPretty(json, Serial);
-            Serial.print('\n');
             bool err = serializeJsonPretty(json, configFile) == 0;
             // Close file
             configFile.close();
@@ -231,11 +248,11 @@ bool SDCard::save2Logfile(TLog* Logdata)
             // Error, file did not open
             Serial.println("SDCard: Failed to open log file for writing");
         }
-    };
+    }
     return false;
 }
 
-bool SDCard::loadLogFile(TLog* Logdata)
+bool SDCard::loadLogFile(TLog& Logdata)
 {
     // Load existing configuration file
     // Read configuration from FS json
@@ -248,7 +265,7 @@ bool SDCard::loadLogFile(TLog* Logdata)
             return false;
         }
         // The file exists, reading and loading
-        File configFile = iSD_->open(JSON_LOG_FILE, "r");
+        File configFile = iSD_->open(JSON_LOG_FILE, FILE_READ);
         if (!configFile)
         {
             Serial.println("SDCard: Error opening log file!");
@@ -267,30 +284,36 @@ bool SDCard::loadLogFile(TLog* Logdata)
         }
         serializeJsonPretty(json, Serial);
         Serial.print('\n');
-
+        /*
         auto JSet = json[JSON_LOGS_OBJECT_SETTINGS];
-        Logdata->PoolAddress = JSet[JSON_KEY_POOLURL] | Logdata->PoolAddress;
-        strcpy(Logdata->BtcWallet, JSet[JSON_KEY_WALLETID] | Logdata->BtcWallet);
-        if (JSet.containsKey(JSON_KEY_POOLPORT))
-            Logdata->PoolPort = JSet[JSON_KEY_POOLPORT].as<int>();
-        if (JSet.containsKey(JSON_KEY_TIMEZONE))
-            Logdata->Timezone = JSet[JSON_KEY_TIMEZONE].as<int>();
-        if (JSet.containsKey(JSON_KEY_STATS2NV))
-            Logdata->saveStats = JSet[JSON_KEY_STATS2NV].as<bool>();
-
+        if(!JSet.isNull())
+        {
+            Logdata.Settings->PoolAddress = JSet[JSON_KEY_POOLURL] | Logdata.Settings->PoolAddress;
+            strcpy(Logdata.Settings->BtcWallet, JSet[JSON_KEY_WALLETID] | Logdata.Settings->BtcWallet);
+            if (JSet.containsKey(JSON_KEY_POOLPORT))
+                Logdata.Settings->PoolPort = JSet[JSON_KEY_POOLPORT].as<int>();
+            if (JSet.containsKey(JSON_KEY_TIMEZONE))
+                Logdata.Settings->Timezone = JSet[JSON_KEY_TIMEZONE].as<int>();
+            if (JSet.containsKey(JSON_KEY_STATS2NV))
+                Logdata.Settings->saveStats = JSet[JSON_KEY_STATS2NV].as<bool>();
+        }
+        */
         auto JLog = json[JSON_LOGS_OBJECT_LOGS];
-        if (JLog.containsKey(JSON_LOGS_KEY_BESTDIFF))
-            Logdata->best_diff = JLog[JSON_LOGS_KEY_BESTDIFF].as<double>();
-        if (JLog.containsKey(JSON_LOGS_KEY_MHASHES))
-            Logdata->Mhashes = JLog[JSON_LOGS_KEY_MHASHES].as<uint32_t>();
-        if (JLog.containsKey(JSON_LOGS_KEY_SHARES))
-            Logdata->shares = JLog[JSON_LOGS_KEY_SHARES].as<uint32_t>();
-        if (JLog.containsKey(JSON_LOGS_KEY_TEMPLATES))
-            Logdata->templates = JLog[JSON_LOGS_KEY_TEMPLATES].as<uint32_t>();
-        if (JLog.containsKey(JSON_LOGS_KEY_UPTIME))
-            Logdata->upTime = JLog[JSON_LOGS_KEY_UPTIME].as<uint64_t>();
-        if (JLog.containsKey(JSON_LOGS_KEY_VALIDS))
-            Logdata->valids = JLog[JSON_LOGS_KEY_VALIDS].as<uint32_t>();
+        if(!JLog.isNull())
+        {
+            if (JLog.containsKey(JSON_LOGS_KEY_BESTDIFF))
+                Logdata.best_diff = JLog[JSON_LOGS_KEY_BESTDIFF].as<double>();
+            if (JLog.containsKey(JSON_LOGS_KEY_MHASHES))
+                Logdata.Mhashes = JLog[JSON_LOGS_KEY_MHASHES].as<uint32_t>();
+            if (JLog.containsKey(JSON_LOGS_KEY_SHARES))
+                Logdata.shares = JLog[JSON_LOGS_KEY_SHARES].as<uint32_t>();
+            if (JLog.containsKey(JSON_LOGS_KEY_TEMPLATES))
+                Logdata.templates = JLog[JSON_LOGS_KEY_TEMPLATES].as<uint32_t>();
+            if (JLog.containsKey(JSON_LOGS_KEY_UPTIME))
+                Logdata.upTime = JLog[JSON_LOGS_KEY_UPTIME].as<uint64_t>();
+            if (JLog.containsKey(JSON_LOGS_KEY_VALIDS))
+                Logdata.valids = JLog[JSON_LOGS_KEY_VALIDS].as<uint32_t>();
+        }
         return true;
     }
     return false;
@@ -305,5 +328,8 @@ bool SDCard::loadConfigFile(TSettings* Settings) { return false; }
 bool SDCard::initSDcard() { return false; }
 bool SDCard::cardAvailable() { return false; }
 bool SDCard::cardBusy() { return false; }
+bool SDCard::loadLogFile(TLog* Logdata) { return false; }
+bool SDCard::saveLogfile(TLog& Logdata) { return false; }
+bool SDCard::updateLogfile(TSettings* Settings, TLog& Logdata) { return false; }
 
 #endif //BUILD_SDMMC

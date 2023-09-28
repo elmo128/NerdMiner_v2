@@ -12,8 +12,11 @@
 #include "monitor.h"
 #include "drivers/displays/display.h"
 #include "drivers/storage/storage.h"
+#include "drivers/storage/SDCard.h"
 
 nvs_handle_t stat_handle;
+
+extern SDCard SDCrd;
 
 uint32_t templates = 0;
 uint32_t hashes = 0;
@@ -413,6 +416,17 @@ void saveStat() {
   nvs_set_u32(stat_handle, "valids", valids);
   nvs_set_u32(stat_handle, "templates", templates);
   nvs_set_u64(stat_handle, "upTime", upTime + (esp_timer_get_time()/1000000));
+  
+  TLog logd;
+  logd.Settings = &Settings;
+  logd.initialized_ = true;
+  logd.best_diff = best_diff;
+  logd.Mhashes = Mhashes;
+  logd.shares= shares;
+  logd.templates = templates;
+  logd.upTime = upTime + (esp_timer_get_time()/1000000);
+  logd.valids = valids;
+  SDCrd.updateLogfile(logd);
 }
 
 void runMonitor(void *name)

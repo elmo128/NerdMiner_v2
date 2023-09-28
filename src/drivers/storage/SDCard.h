@@ -55,12 +55,15 @@ public:
     bool loadConfigFile(TSettings* Settings);
     bool cardAvailable();
     bool cardBusy();
-    bool loadLogFile(TLog* Logdata);
-    bool save2Logfile(TLog* Logdata);
+    bool updateLogfile(TLog& Logdata);
 private:
     bool initSDcard();
+    bool loadLogFile(TLog& Logdata);
+    bool saveLogfile(TLog& Logdata);
+
     bool cardInitialized_;
     bool cardBusy_;
+    TLog logData_;
 #if defined (BUILD_SDMMC_1) || defined(BUILD_SDMMC_4)
     fs::SDMMCFS* iSD_;
 #elif defined (BUILD_SDSPI)

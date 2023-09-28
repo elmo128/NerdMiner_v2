@@ -36,7 +36,7 @@ bool nvMemory::saveConfig(TSettings* Settings)
         json[JSON_SPIFFS_KEY_STATS2NV] = Settings->saveStats;
 
         // Open config file
-        File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
+        File configFile = SPIFFS.open(JSON_CONFIG_FILE, FILE_WRITE);
         if (!configFile)
         {
             // Error, file did not open
@@ -76,7 +76,7 @@ bool nvMemory::loadConfig(TSettings* Settings)
         if (SPIFFS.exists(JSON_CONFIG_FILE))
         {
             // The file exists, reading and loading
-            File configFile = SPIFFS.open(JSON_CONFIG_FILE, "r");
+            File configFile = SPIFFS.open(JSON_CONFIG_FILE, FILE_READ);
             if (configFile)
             {
                 Serial.println("SPIFS: Loading config file");

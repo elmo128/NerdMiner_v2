@@ -43,6 +43,17 @@ struct TSettings
 	int PoolPort{ DEFAULT_POOLPORT };
 	int Timezone{ DEFAULT_TIMEZONE };
 	bool saveStats{ DEFAULT_SAVESTATS };
+
+    bool compare(TSettings& Settings)
+    {
+        return(WifiSSID.compareTo(Settings.WifiSSID) == 0
+        && WifiPW.compareTo(Settings.WifiPW) == 0
+        && PoolAddress.compareTo(Settings.PoolAddress) == 0
+        && strcmp(BtcWallet,(Settings.BtcWallet)) == 0
+        && PoolPort == Settings.PoolPort
+        && Timezone == Settings.Timezone
+        && saveStats == Settings.saveStats);
+    }
 };
 
 // Logfile, Settings, inherited from TSettings are just for information and might be incomplete.
@@ -56,8 +67,9 @@ struct TSettings
 #define JSON_LOGS_KEY_VALIDS    "Valids"
 #define JSON_LOGS_KEY_BESTDIFF  "bestDiff"
 
-struct TLog : TSettings
+struct TLog
 {
+    TSettings* Settings;
     uint32_t templates{0};
     //uint32_t hashes{0};
     uint32_t Mhashes{0};
@@ -70,6 +82,18 @@ struct TLog : TSettings
 
     // Track best diff
     double best_diff{0.0};
+    bool initialized_{false};
+    bool compare(TLog &newLog)
+    {
+        return (Settings->compare(*newLog.Settings)
+        && templates == newLog.templates
+        && Mhashes == newLog.Mhashes
+        && upTime == newLog.upTime
+        && shares == newLog.shares
+        && valids == newLog.valids
+        && !std::isless(best_diff, newLog.best_diff)
+        && !std::isgreater(best_diff, newLog.best_diff));
+    }
 };
 
 #endif // _STORAGE_H_
