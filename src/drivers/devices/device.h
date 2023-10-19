@@ -19,6 +19,8 @@
 #include "lilygoV1TDisplay.h"
 #elif defined(ESP32_CAM)
 #include "esp32CAM.h"
+#elif defined(LOLIN_S2_MINI)
+#include "lollinS2Mini.h"
 
 #else
 #error "No device defined"
