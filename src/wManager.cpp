@@ -22,7 +22,7 @@ bool shouldSaveConfig = false;
 TSettings Settings;
 
 // Define WiFiManager Object
-WiFiManager wm;
+WiFiManager wm(Serial);
 extern monitor_data mMonitor;
 
 nvMemory nvMem;
@@ -65,7 +65,7 @@ void init_WifiManager()
     Serial.begin(115200);
 #endif //MONITOR_SPEED
     //Serial.setTxTimeoutMs(10);
-
+  wm.setDebugOutput(true,"4");
     //Init pin 15 to eneble 5V external power (LilyGo bug)
 #ifdef PIN_ENABLE5V
     pinMode(PIN_ENABLE5V, OUTPUT);
