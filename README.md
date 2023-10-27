@@ -45,7 +45,7 @@ Every time an stratum job notification is received miner update its current work
 - LILYGO T-Dongle S3 ([Aliexpress link*](https://s.click.aliexpress.com/e/_DmQCPyj))
 - ESP32-2432S028R 2,8" ([Aliexpress link*](https://s.click.aliexpress.com/e/_DdXkvLv) / Dev support: @nitroxgas / ⚡jadeddonald78@walletofsatoshi.com)
 - ESP32-cam ([Board Info](https://lastminuteengineers.com/getting-started-with-esp32-cam/) / Dev support: @elmo128)
-- LOLIN S2 Mini ([Board Info](https://docs.platformio.org/en/latest/boards/espressif32/lolin_s2_mini.html)
+- LOLIN S2 Mini ([Board Info](https://docs.platformio.org/en/latest/boards/espressif32/lolin_s2_mini.html))
 
 *Affiliate links
 
