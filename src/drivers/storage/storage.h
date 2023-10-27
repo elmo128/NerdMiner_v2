@@ -33,6 +33,10 @@
 #define JSON_SPIFFS_KEY_TIMEZONE	"gmtZone"
 #define JSON_SPIFFS_KEY_STATS2NV	"saveStatsToNVS"
 
+// Defines for saving Settings to regular nvMemory
+#define NVMEM_FLASH_SETTINGS_LABEL "nvSettings"
+// keys used: JSON_SPIFFS_KEY_...
+
 // settings
 struct TSettings
 {

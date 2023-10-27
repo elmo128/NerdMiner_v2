@@ -184,7 +184,7 @@ bool SDCard::initSDcard()
 
 #else
 
-SDCard::SDCard(int ID) {}
+SDCard::SDCard(int ID) :cardInitialized_(false), cardBusy_(false) {}
 SDCard::~SDCard() {}
 void SDCard::SD2nvMemory(nvMemory* nvMem, TSettings* Settings) {};
 bool SDCard::loadConfigFile(TSettings* Settings) { return false; }

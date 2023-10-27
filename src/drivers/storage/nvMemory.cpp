@@ -6,9 +6,6 @@
 #include <FS.h>
 #include <ArduinoJson.h>
 
-#include "../devices/device.h"
-#include "storage.h"
-
 nvMemory::nvMemory() : Initialized_(false){};
 
 nvMemory::~nvMemory()
@@ -142,9 +139,101 @@ bool nvMemory::init()
     return Initialized_;
 };
 
+#elif defined(NVMEM_FLASH)
+
+#include <nvs_flash.h>
+#include <nvs.h>
+
+nvMemory::nvMemory() : Initialized_(false) {};
+nvMemory::~nvMemory() {};
+bool nvMemory::saveConfig(TSettings* Settings) 
+{
+    Serial.println("NVM: saving data");
+    esp_err_t ret = nvs_flash_init();
+
+    nvs_handle_t stat_handle;
+
+    ret = nvs_open(NVMEM_FLASH_SETTINGS_LABEL, NVS_READWRITE, &stat_handle);
+    Serial.printf("NVM: partition opened successfully? %d\n", (uint32_t) ret);
+    if (ret == ESP_OK)
+    {
+        ret = nvs_set_str(stat_handle, JSON_SPIFFS_KEY_POOLURL, Settings->PoolAddress.c_str());
+        ret = nvs_set_str(stat_handle, JSON_SPIFFS_KEY_WALLETID, Settings->BtcWallet);
+        ret = nvs_set_i32(stat_handle, JSON_SPIFFS_KEY_POOLPORT, Settings->PoolPort);
+        ret = nvs_set_i32(stat_handle, JSON_SPIFFS_KEY_TIMEZONE, Settings->Timezone);
+
+        int8_t out = (Settings->saveStats == true) ? 1 : 0;
+        ret = nvs_set_i8(stat_handle, JSON_SPIFFS_KEY_STATS2NV, out);
+        nvs_commit(stat_handle);
+
+        nvs_close(stat_handle);
+        nvs_flash_deinit_partition(NVMEM_FLASH_SETTINGS_LABEL);
+        return true;
+    }
+    nvs_close(stat_handle);
+    nvs_flash_deinit_partition(NVMEM_FLASH_SETTINGS_LABEL);
+    return false;
+}
+
+bool nvMemory::loadConfig(TSettings* Settings) 
+{
+    Serial.println("NVM: loading data");
+    esp_err_t ret = nvs_flash_init();
+
+    nvs_handle_t stat_handle;
+
+    ret = nvs_open(NVMEM_FLASH_SETTINGS_LABEL, NVS_READONLY, &stat_handle);
+    Serial.printf("NVM: partition opened successfully? %d\n", (uint32_t) ret);
+    if(ret == ESP_OK)
+    {
+        size_t required_size = 0;
+        nvs_get_str(stat_handle, JSON_SPIFFS_KEY_POOLURL, NULL, &required_size);
+        if(required_size>0)
+        {
+            StringX result = StringX(required_size);
+            ret = nvs_get_str(stat_handle, JSON_SPIFFS_KEY_POOLURL, result.getBuffer(), &required_size);
+            Serial.println(result.getString());
+            Settings->PoolAddress=result.getString();
+        }
+        Serial.print("NVM: get poolURL:");
+        Serial.println(Settings->PoolAddress);
+
+        required_size = sizeof(Settings->BtcWallet);
+        ret = nvs_get_str(stat_handle, JSON_SPIFFS_KEY_WALLETID, Settings->BtcWallet, &required_size);
+        Serial.print("NVM: get walletID:");
+        Serial.println(Settings->BtcWallet);
+        
+        ret = nvs_get_i32(stat_handle, JSON_SPIFFS_KEY_POOLPORT, &Settings->PoolPort);
+        Serial.printf("NVM: get port: %d\n", Settings->PoolPort);
+
+        ret = nvs_get_i32(stat_handle, JSON_SPIFFS_KEY_TIMEZONE, &Settings->Timezone);
+        Serial.printf("NVM: get Timezone: %d\n", Settings->Timezone);
+
+        int8_t out = 0;
+        ret = nvs_get_i8(stat_handle, JSON_SPIFFS_KEY_STATS2NV, &out);
+        Settings->saveStats = (out > 0)?true:false;
+        Serial.printf("NVM: get saveStats: %d\n", (uint8_t) Settings->saveStats);
+
+        nvs_close(stat_handle);
+        return true;
+    }
+    nvs_close(stat_handle);
+    return false;
+}
+bool nvMemory::deleteConfig() 
+{ 
+    esp_err_t ret = nvs_flash_erase();
+    return true;
+}
+bool nvMemory::init()
+{
+    esp_err_t ret = nvs_flash_init();
+    return true;
+}
+
 #else
 
-nvMemory::nvMemory() {}
+nvMemory::nvMemory() : Initialized_(false) {}; {}
 nvMemory::~nvMemory() {}
 bool nvMemory::saveConfig(TSettings* Settings) { return false; }
 bool nvMemory::loadConfig(TSettings* Settings) { return false; }
