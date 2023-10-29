@@ -88,16 +88,41 @@ void init_WifiManager()
 
     if (!nvMem.loadConfig(&Settings))
     {
-        //No config file on internal flash.
-        if (SDCrd.loadConfigFile(&Settings))
+#ifdef MY_WIFISSID
+        Settings.WifiSSID = MY_WIFISSID;
+#endif // MY_WIFISSID
+#ifdef MY_WIFIPW
+        Settings.WifiPW = MY_WIFIPW;
+#endif // MY_WIFIPW
+#ifdef MY_WALLET
+        memset (Settings.BtcWallet,'\0',sizeof(Settings.BtcWallet));
+        strcpy(Settings.BtcWallet, MY_WALLET);
+#endif // MY_WALLET
+#ifdef MY_TIMEZONE
+        Settings.Timezone = MY_TIMEZONE;
+#endif // MY_TIMEZONE
+#if defined(MY_WIFISSID) || defined(MY_WIFIPW) || defined(MY_WALLET) || defined(MY_TIMEZONE)
+        nvMem.saveConfig(&Settings);
+        if (nvMem.loadConfig(&Settings))
         {
-            //Config file on SD card.
-            SDCrd.SD2nvMemory(&nvMem, &Settings); // reboot on success.          
+            WiFi.begin(Settings.WifiSSID, Settings.WifiPW);
+            Serial.println("Settings transfered to internal memory. Restarting now.");
+            ESP.restart();
         }
         else
+#endif // save hardcoded crredentials
         {
-            //No config file on SD card. Starting wifi config server.
-            forceConfig = true;
+            //No config file on internal flash.
+            if (SDCrd.loadConfigFile(&Settings))
+            {
+                //Config file on SD card.
+                SDCrd.SD2nvMemory(&nvMem, &Settings); // reboot on success.          
+            }
+            else
+            {
+                //No config file on SD card. Starting wifi config server.
+                forceConfig = true;
+            }
         }
     };
 
