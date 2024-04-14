@@ -7,8 +7,8 @@
 #include "mining.h"
 #include "utils.h"
 #include "monitor.h"
+#include "drivers/storage/storage.h"
 
-extern char poolString[80];
 extern uint32_t templates;
 extern uint32_t hashes;
 extern uint32_t Mhashes;
@@ -23,7 +23,8 @@ extern double best_diff; // track best diff
 
 extern monitor_data mMonitor;
 
-extern int GMTzone; //Gotten from saved config
+//from saved config
+extern TSettings Settings; 
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
@@ -39,7 +40,7 @@ void setup_monitor(void){
     
     // Adjust offset depending on your zone
     // GMT +2 in seconds (zona horaria de Europa Central)
-    timeClient.setTimeOffset(3600 * GMTzone);
+    timeClient.setTimeOffset(3600 * Settings.Timezone);
 
     Serial.println("TimeClient setup done");    
 }
@@ -90,7 +91,12 @@ void updateGlobalData(void){
             deserializeJson(doc, payload);
             String temp = "";
             if (doc.containsKey("halfHourFee")) gData.halfHourFee = doc["halfHourFee"].as<int>();
-
+#ifdef NERDMINER_T_HMI
+            if (doc.containsKey("fastestFee"))  gData.fastestFee = doc["fastestFee"].as<int>();
+            if (doc.containsKey("hourFee"))     gData.hourFee = doc["hourFee"].as<int>();
+            if (doc.containsKey("economyFee"))  gData.economyFee = doc["economyFee"].as<int>();
+            if (doc.containsKey("minimumFee"))  gData.minimumFee = doc["minimumFee"].as<int>();
+#endif
             doc.clear();
 
             mGlobalUpdate = millis();
@@ -151,7 +157,7 @@ String getBTCprice(void){
 
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, payload);
-            if (doc.containsKey("bitcoin")) bitcoin_price = doc["bitcoin"]["usd"];
+            if (doc.containsKey("last_trade_price")) bitcoin_price = doc["last_trade_price"];
 
             doc.clear();
 
@@ -171,7 +177,6 @@ unsigned long mTriggerUpdate = 0;
 unsigned long initialMillis = millis();
 unsigned long initialTime = 0;
 unsigned long mPoolUpdate = 0;
-extern char btcString[80];
 
 void getTime(unsigned long* currentHours, unsigned long* currentMinutes, unsigned long* currentSeconds){
   
@@ -191,6 +196,24 @@ void getTime(unsigned long* currentHours, unsigned long* currentMinutes, unsigne
   *currentHours = currentTime % 86400 / 3600;
   *currentMinutes = currentTime % 3600 / 60;
   *currentSeconds = currentTime % 60;
+}
+
+String getDate(){
+  
+  unsigned long elapsedTime = (millis() - mTriggerUpdate) / 1000; // Tiempo transcurrido en segundos
+  unsigned long currentTime = initialTime + elapsedTime; // La hora actual
+
+  // Convierte la hora actual (epoch time) en una estructura tm
+  struct tm *tm = localtime((time_t *)&currentTime);
+
+  int year = tm->tm_year + 1900; // tm_year es el número de años desde 1900
+  int month = tm->tm_mon + 1;    // tm_mon es el mes del año desde 0 (enero) hasta 11 (diciembre)
+  int day = tm->tm_mday;         // tm_mday es el día del mes
+
+  char currentDate[20];
+  sprintf(currentDate, "%02d/%02d/%04d", tm->tm_mday, tm->tm_mon + 1, tm->tm_year + 1900);
+
+  return String(currentDate);
 }
 
 String getTime(void){
@@ -248,6 +271,7 @@ clock_data getClockData(unsigned long mElapsed)
   data.btcPrice = getBTCprice();
   data.blockHeight = getBlockHeight();
   data.currentTime = getTime();
+  data.currentDate = getDate();
 
   return data;
 }
@@ -274,6 +298,12 @@ coin_data getCoinData(unsigned long mElapsed)
   data.currentHashRate = getCurrentHashRate(mElapsed);
   data.btcPrice = getBTCprice();
   data.currentTime = getTime();
+#ifdef NERDMINER_T_HMI
+  data.hourFee = String(gData.hourFee);
+  data.fastestFee = String(gData.fastestFee);
+  data.economyFee = String(gData.economyFee);
+  data.minimumFee = String(gData.minimumFee);
+#endif
   data.halfHourFee = String(gData.halfHourFee) + " sat/vB";
   data.netwrokDifficulty = gData.difficulty;
   data.globalHashRate = gData.globalHash;
@@ -287,7 +317,7 @@ coin_data getCoinData(unsigned long mElapsed)
   return data;
 }
 
-pool_data updatePoolData(void){
+pool_data getPoolData(void){
     //pool_data pData;    
     if((mPoolUpdate == 0) || (millis() - mPoolUpdate > UPDATE_POOL_min * 60 * 1000)){      
         if (WiFi.status() != WL_CONNECTED) return pData;
@@ -296,27 +326,41 @@ pool_data updatePoolData(void){
         HTTPClient http;
         http.setReuse(true);        
         try {          
-          http.begin(String(getPublicPool)+btcString);  
+          String btcWallet = Settings.BtcWallet;
+          Serial.println(btcWallet);
+          if (btcWallet.indexOf(".")>0) btcWallet = btcWallet.substring(0,btcWallet.indexOf("."));
+          http.begin(String(getPublicPool)+btcWallet);
           int httpCode = http.GET();
-
-          if (httpCode > 0) {
+          if (httpCode == HTTP_CODE_OK) {
               String payload = http.getString();
               // Serial.println(payload);
-              DynamicJsonDocument doc(1024);
-              deserializeJson(doc, payload);
-             
+              StaticJsonDocument<300> filter;
+              filter["bestDifficulty"] = true;
+              filter["workersCount"] = true;
+              filter["workers"][0]["sessionId"] = true;
+              filter["workers"][0]["hashRate"] = true;
+              DynamicJsonDocument doc(2048);
+              deserializeJson(doc, payload, DeserializationOption::Filter(filter));
+              //Serial.println(serializeJsonPretty(doc, Serial));
               if (doc.containsKey("workersCount")) pData.workersCount = doc["workersCount"].as<int>();
               const JsonArray& workers = doc["workers"].as<JsonArray>();
               float totalhashs = 0;
               for (const JsonObject& worker : workers) {
-                totalhashs += worker["hashRate"].as<float>();
+                totalhashs += worker["hashRate"].as<double>();
+                /* Serial.print(worker["sessionId"].as<String>()+": ");
+                Serial.print(" - "+worker["hashRate"].as<String>()+": ");
+                Serial.println(totalhashs); */
               }
-              pData.workersHash = String(totalhashs/1000);
-              
-              String temp = "";
+              char totalhashs_s[16] = {0};
+              suffix_string(totalhashs, totalhashs_s, 16, 0);
+              pData.workersHash = String(totalhashs_s);
+
+              double temp;
               if (doc.containsKey("bestDifficulty")) {
-              temp = doc["bestDifficulty"].as<float>();
-              pData.bestDifficulty = String(temp);
+              temp = doc["bestDifficulty"].as<double>();            
+              char best_diff_string[16] = {0};
+              suffix_string(temp, best_diff_string, 16, 0);
+              pData.bestDifficulty = String(best_diff_string);
               }
               doc.clear();
               mPoolUpdate = millis();

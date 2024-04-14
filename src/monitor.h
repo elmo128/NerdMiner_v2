@@ -13,8 +13,8 @@
 #define UPDATE_PERIOD_h   5
 
 //API BTC price
-#define getBTCAPI "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-#define UPDATE_BTC_min   5
+#define getBTCAPI "https://api.blockchain.com/v3/exchange/tickers/BTC-USD"
+#define UPDATE_BTC_min   1
 
 //API Block height
 #define getHeightAPI "https://mempool.space/api/blocks/tip/height"
@@ -54,6 +54,12 @@ typedef struct{
   float progressPercent;
   int remainingBlocks;
   int halfHourFee;
+#ifdef NERDMINER_T_HMI
+  int fastestFee;
+  int hourFee;
+  int economyFee;
+  int minimumFee;
+#endif
 }global_data;
 
 typedef struct {
@@ -76,6 +82,7 @@ typedef struct {
   String btcPrice;
   String blockHeight;
   String currentTime;  
+  String currentDate;
 }clock_data;
 
 typedef struct {
@@ -93,6 +100,12 @@ typedef struct {
   String btcPrice;
   String currentTime;
   String halfHourFee;
+#ifdef NERDMINER_T_HMI
+  String hourFee;
+  String fastestFee;
+  String economyFee;
+  String minimumFee;
+#endif
   String netwrokDifficulty;
   String globalHashRate;
   String blockHeight;
@@ -111,7 +124,7 @@ void setup_monitor(void);
 mining_data getMiningData(unsigned long mElapsed);
 clock_data getClockData(unsigned long mElapsed);
 coin_data getCoinData(unsigned long mElapsed);
-pool_data updatePoolData(void);
+pool_data getPoolData(void);
 
 clock_data_t getClockData_t(unsigned long mElapsed);
 

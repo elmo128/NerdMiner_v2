@@ -4,13 +4,15 @@
 #include <esp_task_wdt.h>
 #include <nvs_flash.h>
 #include <nvs.h>
-#include "ShaTests/nerdSHA256.h"
-//#include "ShaTests/nerdSHA256plus.h"
+//#include "ShaTests/nerdSHA256.h"
+#include "ShaTests/nerdSHA256plus.h"
 #include "stratum.h"
 #include "mining.h"
 #include "utils.h"
 #include "monitor.h"
-#include "drivers/display.h"
+#include "timeconst.h"
+#include "drivers/displays/display.h"
+#include "drivers/storage/storage.h"
 
 nvs_handle_t stat_handle;
 
@@ -28,11 +30,10 @@ uint32_t valids; // increased if blockhash <= target
 double best_diff = 0.0;
 
 // Variables to hold data from custom textboxes
-extern char poolString[80];
-extern int portNumber;
-extern char btcString[80];
+//Track mining stats in non volatile memory
+extern TSettings Settings;
+
 IPAddress serverIP(1, 1, 1, 1); //Temporally save poolIPaddres
-extern bool saveStatsToNVS; //Track mining stats in non volatile memory
 
 //Global work data 
 static WiFiClient client;
@@ -43,7 +44,7 @@ monitor_data mMonitor;
 bool isMinerSuscribed = false;
 unsigned long mLastTXtoPool = millis();
 
-int saveIntervals[7] = {5 * 60, 15 * 60, 30 * 60, 1 * 360, 3 * 360, 6 * 360, 12 * 360};
+int saveIntervals[7] = {5 * 60, 15 * 60, 30 * 60, 1 * 3600, 3 * 3600, 6 * 3600, 12 * 3600};
 int saveIntervalsSize = sizeof(saveIntervals)/sizeof(saveIntervals[0]);
 int currentIntervalIndex = 0;
 
@@ -59,14 +60,14 @@ bool checkPoolConnection(void) {
   
   //Resolve first time pool DNS and save IP
   if(serverIP == IPAddress(1,1,1,1)) {
-    WiFi.hostByName(poolString, serverIP);
+    WiFi.hostByName(Settings.PoolAddress.c_str(), serverIP);
     Serial.printf("Resolved DNS and save ip (first time) got: %s\n", serverIP.toString());
   }
 
   //Try connecting pool IP
-  if (!client.connect(serverIP, portNumber)) {
-    Serial.println("Imposible to connect to : " + String(poolString));
-    WiFi.hostByName(poolString, serverIP);
+  if (!client.connect(serverIP, Settings.PoolPort)) {
+    Serial.println("Imposible to connect to : " + Settings.PoolAddress);
+    WiFi.hostByName(Settings.PoolAddress.c_str(), serverIP);
     Serial.printf("Resolved DNS got: %s\n", serverIP.toString());
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     return false;
@@ -116,7 +117,7 @@ void runStratumWorker(void *name) {
   Serial.printf("\n[WORKER] Started. Running %s on core %d\n", (char *)name, xPortGetCoreID());
 
   #ifdef DEBUG_MEMORY
-  Serial.printf("### [Total Heap / Free heap]: %d / %d \n", ESP.getHeapSize(), ESP.getFreeHeap());
+  Serial.printf("### [Total Heap / Free heap / Min free heap]: %d / %d / %d \n", ESP.getHeapSize(), ESP.getFreeHeap(), ESP.getMinFreeHeap());
   #endif
 
   // connect to pool
@@ -133,26 +134,12 @@ void runStratumWorker(void *name) {
       continue;
     } 
 
-    //Test vars:
-    //************
-    //Nerdminerpool
-    // strcpy(poolString, "nerdminerPool"); 
-    // portNumber = 3002;
-    // strcpy(btcString,"test");
-    //Braiins
-    //strcpy(poolString, "eu.stratum.braiins.com");
-    //portNumber = 3333;
-    //strcpy(btcString,"Bitmaker.01");
-    //CKpool
-    //strcpy(poolString, "solo.ckpool.org");
-    //portNumber = 3333;
-    //strcpy(btcString,"test");
-
-    if(!checkPoolConnection())
+    if(!checkPoolConnection()){
       //If server is not reachable add random delay for connection retries
       srand(millis());
-      //Generate value between 1 and 15 secs
-      vTaskDelay(((1 + rand() % 15) * 1000) / portTICK_PERIOD_MS);
+      //Generate value between 1 and 120 secs
+      vTaskDelay(((1 + rand() % 120) * 1000) / portTICK_PERIOD_MS);
+    }
 
     if(!isMinerSuscribed){
 
@@ -166,8 +153,8 @@ void runStratumWorker(void *name) {
         continue; 
       }
       
-      strcpy(mWorker.wName, btcString);
-      strcpy(mWorker.wPass, "x");
+      strcpy(mWorker.wName, Settings.BtcWallet);
+      strcpy(mWorker.wPass, Settings.PoolPassword);
       // STEP 2: Pool authorize work (Block Info)
       tx_mining_auth(client, mWorker.wName, mWorker.wPass); //Don't verifies authoritzation, TODO
       //tx_mining_auth2(client, mWorker.wName, mWorker.wPass); //Don't verifies authoritzation, TODO
@@ -256,14 +243,12 @@ void runMiner(void * task_id) {
     mMonitor.NerdStatus = NM_hashing;
 
     //Prepare Premining data
-    nerd_sha256 nerdMidstate;
-    //nerdSHA256_context nerdMidstate; //NerdShaplus
+    nerdSHA256_context nerdMidstate; //NerdShaplus
     uint8_t hash[32];
     
 
     //Calcular midstate
-    nerd_midstate(&nerdMidstate, mMiner.bytearray_blockheader, 64);
-    //nerd_mids(&nerdMidstate, mMiner.bytearray_blockheader); //NerdShaplus
+    nerd_mids(&nerdMidstate, mMiner.bytearray_blockheader); //NerdShaplus
 
 
     // search a valid nonce
@@ -290,8 +275,8 @@ void runMiner(void * task_id) {
         memcpy(mMiner.bytearray_blockheader2 + 76, &nonce, 4);
 
 
-      nerd_double_sha2(&nerdMidstate, header64, hash);
-      //is16BitShare=nerd_sha256d(&nerdMidstate, header64, hash); //Boosted 80Khs sha
+      //nerd_double_sha2(&nerdMidstate, header64, hash);
+      is16BitShare=nerd_sha256d(&nerdMidstate, header64, hash); //Boosted 80Khs sha
 
       /*Serial.print("hash1: ");
       for (size_t i = 0; i < 32; i++)
@@ -386,7 +371,7 @@ void runMiner(void * task_id) {
 #define REDRAW_EVERY 10
 
 void restoreStat() {
-  if(!saveStatsToNVS) return;
+  if(!Settings.saveStats) return;
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     Serial.printf("[MONITOR] NVS partition is full or has invalid version, erasing...\n");
@@ -405,7 +390,7 @@ void restoreStat() {
 }
 
 void saveStat() {
-  if(!saveStatsToNVS) return;
+  if(!Settings.saveStats) return;
   Serial.printf("[MONITOR] Saving stats\n");
   nvs_set_blob(stat_handle, "best_diff", &best_diff, sizeof(double));
   nvs_set_u32(stat_handle, "Mhashes", Mhashes);
@@ -447,12 +432,12 @@ void runMonitor(void *name)
       if (elapsedKHs == 0)
       {
         Serial.printf(">>> [i] Miner: newJob>%s / inRun>%s) - Client: connected>%s / subscribed>%s / wificonnected>%s\n",
-                      mMiner.newJob ? "true" : "false", mMiner.inRun ? "true" : "false",
-                      client.connected() ? "true" : "false", isMinerSuscribed ? "true" : "false", WiFi.status() == WL_CONNECTED ? "true" : "false");
+            mMiner.newJob ? "true" : "false", mMiner.inRun ? "true" : "false",
+            client.connected() ? "true" : "false", isMinerSuscribed ? "true" : "false", WiFi.status() == WL_CONNECTED ? "true" : "false");
       }
 
       #ifdef DEBUG_MEMORY
-      Serial.printf("### [Total Heap / Free heap]: %d / %d \n", ESP.getHeapSize(), ESP.getFreeHeap());
+      Serial.printf("### [Total Heap / Free heap / Min free heap]: %d / %d / %d \n", ESP.getHeapSize(), ESP.getFreeHeap(), ESP.getMinFreeHeap());
       Serial.printf("### Max stack usage: %d\n", uxTaskGetStackHighWaterMark(NULL));
       #endif
 

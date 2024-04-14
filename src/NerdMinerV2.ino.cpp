@@ -1,4 +1,5 @@
 
+#include <Wire.h>
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -10,7 +11,9 @@
 #include "wManager.h"
 #include "mining.h"
 #include "monitor.h"
-#include "drivers/display.h"
+#include "drivers/displays/display.h"
+#include "drivers/storage/SDCard.h"
+#include "timeconst.h"
 
 //3 seconds WDT
 #define WDT_TIMEOUT 3
@@ -25,8 +28,9 @@
   OneButton button2(PIN_BUTTON_2);
 #endif
 
-
 extern monitor_data mMonitor;
+
+SDCard SDCrd = SDCard();
 
 /**********************⚡ GLOBAL Vars *******************************/
 
@@ -38,9 +42,20 @@ const char* ntpServer = "pool.ntp.org";
 /********* INIT *****/
 void setup()
 {
-  Serial.begin(115200);
+      //Init pin 15 to eneble 5V external power (LilyGo bug)
+  #ifdef PIN_ENABLE5V
+      pinMode(PIN_ENABLE5V, OUTPUT);
+      digitalWrite(PIN_ENABLE5V, HIGH);
+  #endif
+
+#ifdef MONITOR_SPEED
+    Serial.begin(MONITOR_SPEED);
+#else
+    Serial.begin(115200);
+#endif //MONITOR_SPEED
+
   Serial.setTimeout(0);
-  delay(100);
+  delay(SECOND_MS/10);
 
   esp_task_wdt_init(WDT_MINER_TIMEOUT, true);
   // Idle task that would reset WDT never runs, because core 0 gets fully utilized
@@ -49,22 +64,23 @@ void setup()
 
   // Setup the buttons
   #if defined(PIN_BUTTON_1) && !defined(PIN_BUTTON_2) //One button device
-    button1.setPressTicks(5000);
+    button1.setPressMs(5*SECOND_MS);
     button1.attachClick(switchToNextScreen);
     button1.attachDoubleClick(alternateScreenRotation);
-    button1.attachLongPressStart(reset_configurations);
+    button1.attachLongPressStart(reset_configuration);
+    button1.attachMultiClick(alternateScreenState);
   #endif
 
   #if defined(PIN_BUTTON_1) && defined(PIN_BUTTON_2) //Button 1 of two button device
-    button1.setPressTicks(5000);
+    button1.setPressMs(5*SECOND_MS);
     button1.attachClick(alternateScreenState);
     button1.attachDoubleClick(alternateScreenRotation);
   #endif
 
   #if defined(PIN_BUTTON_2) //Button 2 of two button device
-    button2.setPressTicks(5000);
+    button2.setPressMs(5*SECOND_MS);
     button2.attachClick(switchToNextScreen);
-    button2.attachLongPressStart(reset_configurations);
+    button2.attachLongPressStart(reset_configuration);
   #endif
 
   /******** INIT NERDMINER ************/
@@ -75,7 +91,7 @@ void setup()
   
   /******** PRINT INIT SCREEN *****/
   drawLoadingScreen();
-  delay(2000);
+  delay(2*SECOND_MS);
 
   /******** SHOW LED INIT STATUS (devices without screen) *****/
   mMonitor.NerdStatus = NM_waitingConfig;
@@ -114,7 +130,6 @@ void setup()
 
   /******** MONITOR SETUP *****/
   setup_monitor();
-  
 }
 
 void app_error_fault_handler(void *arg) {
@@ -138,7 +153,7 @@ void loop() {
     button2.tick();
   #endif
   
-  wifiManagerProcess(); // avoid delays() in loop when non-blocking and other long running code  
+  wifiManagerProcess(); // avoid delays() in loop when non-blocking and other long running code
 
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }

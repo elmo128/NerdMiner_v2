@@ -1,26 +1,7 @@
-#ifndef DRIVERS_H
-#define DRIVERS_H
+#ifndef DISPLAYDRIVER_H_
+#define DISPLAYDRIVER_H_
 
-#if defined(NERDMINERV2)
-#include "devices/nerdMinerV2.h"
-#elif defined(DEVKITV1)
-#include "devices/esp32DevKit.h"
-#elif defined(TDISPLAY)
-#include "devices/lilygoS3TDisplay.h"
-#elif defined(NERMINER_S3_AMOLED)
-#include "devices/lilygoS3Amoled.h"
-#elif defined(NERMINER_S3_DONGLE)
-#include "devices/lilygoS3Dongle.h"
-#elif defined(ESP32_2432S028R)
-#include "devices/esp322432s028r.h"
-#elif defined(NERMINER_T_QT)
-#include "devices/lilygoT_QT.h"
-#elif defined(NERDMINER_T_DISPLAY_V1)
-#include "devices/lilygoV1TDisplay.h"
-
-#else
-#error "No device defined"
-#endif
+#include "../devices/device.h"
 
 typedef void (*AlternateFunction)(void);
 typedef void (*DriverInitFunction)(void);
@@ -47,14 +28,19 @@ typedef struct
 
 extern DisplayDriver *currentDisplayDriver;
 
+extern DisplayDriver m5stackDisplayDriver;
+extern DisplayDriver wt32DisplayDriver;
 extern DisplayDriver noDisplayDriver;
+extern DisplayDriver ledDisplayDriver;
 extern DisplayDriver tDisplayDriver;
 extern DisplayDriver amoledDisplayDriver;
 extern DisplayDriver dongleDisplayDriver;
 extern DisplayDriver esp32_2432S028RDriver;
 extern DisplayDriver t_qtDisplayDriver;
 extern DisplayDriver tDisplayV1Driver;
+extern DisplayDriver m5stickCDriver;
+extern DisplayDriver t_hmiDisplayDriver;
 
 #define SCREENS_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#endif // DRIVERS_H
+#endif // DISPLAYDRIVER_H_

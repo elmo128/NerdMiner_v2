@@ -1,4 +1,4 @@
-#include "../drivers.h"
+#include "displayDriver.h"
 
 #ifdef DONGLE_DISPLAY
 
@@ -9,7 +9,11 @@
 #include "version.h"
 #include "monitor.h"
 #include "OpenFontRender.h"
+#include "rotation.h"
+
+#ifdef USE_LED
 #include <FastLED.h>
+#endif
 
 #define WIDTH 160
 #define HEIGHT 80
@@ -26,6 +30,7 @@ OpenFontRender render;
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite background = TFT_eSprite(&tft);
 
+#ifdef USE_LED
 #define MAX_BRIGHTNESS 16
 #define SLOW_FADE 1;
 #define FAST_FADE 4;
@@ -34,6 +39,7 @@ CRGB leds(0, 0, 0);
 int brightness = 0;
 int fadeDirection = 1;
 int fadeAmount = 0;
+#endif // USE_LED
 
 extern monitor_data mMonitor;
 
@@ -45,15 +51,15 @@ extern monitor_data mMonitor;
   int32_t x = 8, y = 8;                 \
   background.setTextSize(1);            \
   background.setTextFont(FONT2);        \
-  \    
+  \
     background.setTextColor(KEY_COLOR); \
-  \    
+  \
     render.setFontSize(18);
 
 #define CLEAR_SCREEN()                                                \
   RESET_SCREEN();                                                     \
   background.fillRect(0, 0, BUFFER_WIDTH, BUFFER_HEIGHT, BACK_COLOR); \
-  \    
+  \
 
 
 #define PRINT_STR(str)                                                \
@@ -74,11 +80,13 @@ extern monitor_data mMonitor;
 
 void dongleDisplay_Init(void)
 {
+  #ifdef USE_LED
   FastLED.addLeds<APA102, LED_DI_PIN, LED_CI_PIN, BGR>(&leds, 1);
   FastLED.show();
+  #endif // USE_LED
 
   tft.init();
-  tft.setRotation(3);
+  tft.setRotation(LANDSCAPE_INVERTED);
   tft.setSwapBytes(true);
   background.createSprite(BUFFER_WIDTH, BUFFER_HEIGHT);
   background.setSwapBytes(true);
@@ -96,11 +104,14 @@ void dongleDisplay_Init(void)
 
 void dongleDisplay_AlternateScreenState(void)
 {
+  int screen_state = digitalRead(TFT_BL);
+  Serial.println("Switching display state");
+  digitalWrite(TFT_BL, !screen_state);
 }
 
 void dongleDisplay_AlternateRotation(void)
 {
-  tft.getRotation() == 1 ? tft.setRotation(3) : tft.setRotation(1);
+  tft.setRotation( flipRotation(tft.getRotation()) );
 }
 
 void dongleDisplay_MinerScreen(unsigned long mElapsed)
@@ -162,6 +173,12 @@ void dongleDisplay_AnimateCurrentScreen(unsigned long frame)
 void dongleDisplay_DoLedStuff(unsigned long frame)
 {
 #ifdef USE_LED
+  if (digitalRead(TFT_BL))
+  {    
+    FastLED.clear(true);
+    return;
+  }
+
   switch (mMonitor.NerdStatus)
   {
   case NM_waitingConfig:
